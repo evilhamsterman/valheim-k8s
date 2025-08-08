@@ -1,33 +1,50 @@
-{{ if eq .Values.storage.kind "persistentVolumeClaim" }}
+{{ if eq .Values.storage.data.kind "persistentVolumeClaim" }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Release.Name }}-world-data
   namespace: {{ .Release.Namespace }}
 spec:
-  {{ if .Values.storage.pvc.storageClassName }}
-  storageClassName: {{ .Values.storage.pvc.storageClassName }}
+  {{ if .Values.storage.data.pvc.storageClassName }}
+  storageClassName: {{ .Values.storage.data.pvc.storageClassName }}
   {{ end }}
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.storage.pvc.size }}
+      storage: {{ .Values.storage.data.pvc.size }}
 {{ end }}
 ---
-{{ if eq .Values.serverStorage.kind "persistentVolumeClaim" }}
+{{ if eq .Values.storage.server.kind "persistentVolumeClaim" }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Release.Name }}-server-base-data
   namespace: {{ .Release.Namespace }}
 spec:
-  {{ if .Values.serverStorage.pvc.storageClassName }}
-  storageClassName: {{ .Values.serverStorage.pvc.storageClassName }}
+  {{ if .Values.storage.server.pvc.storageClassName }}
+  storageClassName: {{ .Values.storage.server.pvc.storageClassName }}
   {{ end }}
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.serverStorage.pvc.size }}
+      storage: {{ .Values.storage.server.pvc.size }}
+{{ end }}
+---
+{{ if eq .Values.storage.backups.kind "persistentVolumeClaim" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-server-base-data
+  namespace: {{ .Release.Namespace }}
+spec:
+  {{ if .Values.storage.backups.pvc.storageClassName }}
+  storageClassName: {{ .Values.storage.backup.pvc.storageClassName }}
+  {{ end }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.storage.backups.pvc.size }}
 {{ end }}

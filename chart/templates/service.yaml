@@ -31,6 +31,9 @@ spec:
     {{- end }}
   {{ end }}
   type: {{ .Values.networking.serviceType }}
+  {{ if .Values.networking.loadBalancerClass }}
+  loadBalancerClass: {{ .Values.networking.loadBalancerClass | quote }}
+  {{ end }}
   {{ if .Values.networking.loadBalancerIP }}
   loadBalancerIP: {{ .Values.networking.loadBalancerIP | quote }}
   {{ end }}

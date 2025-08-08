@@ -1,6 +1,6 @@
 worldName: example-world-name
 serverName: example-server-name
-password: password 
+password: password
 
 resources: {}
 
@@ -9,21 +9,27 @@ image:
   tag: latest
 
 storage:
-  kind: hostvol
-  hostvol:
-    path: /data/valheim
-  pvc:
-    size: 1Gi
-
-serverStorage:
-  kind: hostvol
-  hostvol:
-    path: /data/valheim-server
-  pvc:
-    size: 5Gi
+  data:
+    kind: hostvol
+    hostvol:
+      path: /data/valheim
+    pvc:
+      size: 1Gi
+  server:
+    kind: hostvol
+    hostvol:
+      path: /data/valheim-server
+    pvc:
+      size: 5Gi
+  backups:
+    kind: hostvol
+    hostvol:
+      path: /data/valheim-backups
+    pvc:
+      size: 5Gi
 
 # if useHostNetworking is set to true then no service is created
-# and the gamePort 
+# and the gamePort
 useHostNetworking: false
 networking:
   # Optional additional annotations to add to the service
@@ -31,15 +37,14 @@ networking:
   # Optional additional labels to add to the service
   # serviceLabels: {}
   serviceType: LoadBalancer
+  # loadBalancerClass:
   gamePort: 2456
   publishQueryPort: true
   nodePort: 30373
 
-
 nodeSelector: {}
-  
-tolerations: {}
 
+tolerations: {}
 # If you utilize priority classes, you can define the priority class for this deployment here
 # priorityClassName: my-priority-class-name
 
