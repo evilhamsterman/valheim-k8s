@@ -48,12 +48,6 @@ task status
 task clean
 ```
 
-## Git & Worktree Conventions
-
-- This repository uses git worktrees. The `main` directory must stay on `main`.
-- For new feature branches, always create a new worktree (`git worktree add ../<branch-name> <branch-name>`), unless Dan explicitly instructs to commit directly to `main`.
-- Before pushing, run `git fetch origin && git log origin/main..HEAD` to confirm branch status.
-
 ## Release & CI/CD Workflow
 
 - Version number is tracked in both `version` and `chart/Chart.yaml` (keep both in sync).
