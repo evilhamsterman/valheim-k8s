@@ -108,6 +108,32 @@ resources: {}
   #   cpu: 2000m
   #   memory: 4Gi
 
+# Readiness probe verifies that the game server is listening and ready to accept connections
+readinessProbe:
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - test "$(cat /var/run/valheim/valheim-server.status 2>/dev/null)" = "running"
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Startup probe gives the server time to download files and load chunks before liveness/readiness kicks in
+startupProbe:
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - test "$(cat /var/run/valheim/valheim-server.status 2>/dev/null)" = "running"
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 30
+
+livenessProbe: {}
+
 nodeSelector: {}
 tolerations: []
 affinity: {}

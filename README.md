@@ -160,6 +160,9 @@ backups:
 | `priorityClassName` | Priority class name | `""` |
 | `podLabels` | Additional labels for pod | `{}` |
 | `podAnnotations` | Additional annotations for pod | `{}` |
+| `readinessProbe` | Readiness probe configuration (checks server UDP listener status) | `exec (test status = running)` |
+| `startupProbe` | Startup probe to accommodate initial Steam download & world loading | `exec (test status = running)` |
+| `livenessProbe` | Liveness probe configuration | `{}` |
 | `extraEnvironmentVars` | Additional environment variables for container | `{}` |
 | `extraVolumes` | Additional volumes to mount into the pod | `[]` |
 
