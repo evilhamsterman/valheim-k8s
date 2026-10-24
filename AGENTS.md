@@ -48,8 +48,8 @@ task status
 task clean
 ```
 
-## Release & CI/CD Workflow
+## CI/CD Workflows
 
+- **CI Test (`.github/workflows/ci.yml`)**: Runs on `push` and `pull_request` to `main` touching chart files, Taskfile, or version. Executes `task lint`, `task build` (test packaging), and `task template`.
+- **Release (`.github/workflows/deploy-chart.yml`)**: Runs on published GitHub releases (and manual `workflow_dispatch`). Packages the chart and pushes the OCI artifact to `oci://ghcr.io/${OWNER}`.
 - Version number is tracked in both `version` and `chart/Chart.yaml` (keep both in sync).
-- CI workflow (`.github/workflows/deploy-chart.yml`) triggers on published GitHub releases (and manual `workflow_dispatch`).
-- Packages the chart with Helm and pushes the OCI package to `oci://ghcr.io/${OWNER}`.
