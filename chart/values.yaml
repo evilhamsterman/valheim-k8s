@@ -43,25 +43,9 @@ storage:
     hostvol:
       path: /data/valheim-server
 
-  # Dedicated volume for world backups (mounted to /config/backups or backups.directory)
-  # Optional, but enabled by default. If backups are enabled, backup storage is required.
-  backups:
-    enabled: true
-    kind: persistentVolumeClaim
-    pvc:
-      size: 10Gi
-      # storageClassName: ""
-      # existingClaim: ""
-      accessModes:
-        - ReadWriteOnce
-      # annotations: {}
-      # labels: {}
-    hostvol:
-      path: /data/valheim-backups
-
 # Built-in backup management options from upstream container
 backups:
-  # Enable periodic automatic world backups
+  # Enable periodic automatic world backups and dedicated backup storage
   enabled: true
   # Cron expression for backup schedule (default: hourly at 5 past the hour)
   cron: "5 * * * *"
@@ -82,6 +66,21 @@ backups:
   # Command executed after creating backup (@BACKUP_FILE@ placeholder substituted)
   # Example: "timeout 300 scp -i /extraVolumes/backup-ssh-key/ssh-key -o StrictHostKeyChecking=no @BACKUP_FILE@ user@host:/backups/$(basename @BACKUP_FILE@)"
   postBackupHook: ""
+
+  # Dedicated volume for world backups (mounted to /config/backups or backups.directory)
+  # Required when backups.enabled is true.
+  storage:
+    kind: persistentVolumeClaim
+    pvc:
+      size: 10Gi
+      # storageClassName: ""
+      # existingClaim: ""
+      accessModes:
+        - ReadWriteOnce
+      # annotations: {}
+      # labels: {}
+    hostvol:
+      path: /data/valheim-backups
 
 # If useHostNetworking is true, pod uses host network namespace and no Service is created
 useHostNetworking: false

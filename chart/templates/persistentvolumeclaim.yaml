@@ -47,28 +47,29 @@ spec:
     requests:
       storage: {{ .Values.storage.server.pvc.size }}
 {{- end }}
-{{- if and .Values.storage.backups (ne .Values.storage.backups.enabled false) (eq .Values.storage.backups.kind "persistentVolumeClaim") (not .Values.storage.backups.pvc.existingClaim) }}
+{{- $backupStorage := or (and .Values.storage .Values.storage.backups) (and .Values.backups .Values.backups.storage) }}
+{{- if and .Values.backups (ne .Values.backups.enabled false) $backupStorage (eq $backupStorage.kind "persistentVolumeClaim") (not $backupStorage.pvc.existingClaim) }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Release.Name }}-backup-data
   namespace: {{ .Release.Namespace }}
-  {{- with .Values.storage.backups.pvc.annotations }}
+  {{- with $backupStorage.pvc.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with .Values.storage.backups.pvc.labels }}
+  {{- with $backupStorage.pvc.labels }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if .Values.storage.backups.pvc.storageClassName }}
-  storageClassName: {{ .Values.storage.backups.pvc.storageClassName | quote }}
+  {{- if $backupStorage.pvc.storageClassName }}
+  storageClassName: {{ $backupStorage.pvc.storageClassName | quote }}
   {{- end }}
   accessModes:
-    {{- toYaml (default (list "ReadWriteOnce") .Values.storage.backups.pvc.accessModes) | nindent 4 }}
+    {{- toYaml (default (list "ReadWriteOnce") $backupStorage.pvc.accessModes) | nindent 4 }}
   resources:
     requests:
-      storage: {{ .Values.storage.backups.pvc.size }}
+      storage: {{ $backupStorage.pvc.size }}
 {{- end }}

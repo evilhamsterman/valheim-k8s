@@ -24,7 +24,7 @@ Instructions and context for AI coding agents working in the `valheim-k8s` repos
 
 Backups are powered by the upstream container's backup daemon:
 - Built-in options in `values.yaml` under `backups:` map directly to container environment variables (`BACKUPS`, `BACKUPS_CRON`, `BACKUPS_DIRECTORY`, `BACKUPS_MAX_AGE`, `BACKUPS_MAX_COUNT`, `BACKUPS_IF_IDLE`, `BACKUPS_IDLE_GRACE_PERIOD`, `BACKUPS_ZIP`, `PRE_BACKUP_HOOK`, `POST_BACKUP_HOOK`).
-- Dedicated backup volume mounts over `/config/backups`. Backup storage is enabled by default (`storage.backups.enabled: true`); if backups are enabled (`backups.enabled: true`), backup storage is strictly required and enforced at template evaluation time.
+- Dedicated backup volume mounts over `/config/backups` configured via `backups.storage`. Setting `backups.enabled: true` enables both the container backup engine and backup storage, requiring valid `backups.storage` configuration. Setting `backups.enabled: false` disables backups and omits the backup volume.
 
 ## Local Verification & Testing
 

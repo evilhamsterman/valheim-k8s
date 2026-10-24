@@ -77,11 +77,10 @@ spec:
 
 ### Storage
 
-Persistence is split into three separate volumes:
+Persistence is split into primary persistent volumes and a dedicated backup volume managed under `backups.storage`:
 
 1. **`storage.data`**: World saves, admin/ban lists, and preferences (mounted to `/config`).
 2. **`storage.server`**: Server binaries and Steam depot cache (mounted to `/opt/valheim`). Skipping re-downloads on restart.
-3. **`storage.backups`**: Dedicated world backup archives (mounted to `/config/backups` or `backups.directory`).
 
 | Parameter | Description | Default |
 |:---|:---|:---|
@@ -95,20 +94,14 @@ Persistence is split into three separate volumes:
 | `storage.server.pvc.storageClassName` | StorageClass name (uses default if empty) | `""` |
 | `storage.server.pvc.existingClaim` | Name of pre-existing PVC to bind | `""` |
 | `storage.server.hostvol.path` | Host path when `kind: hostvol` | `/data/valheim-server` |
-| `storage.backups.enabled` | Enable dedicated volume for backups (required if `backups.enabled` is `true`) | `true` |
-| `storage.backups.kind` | Storage type: `persistentVolumeClaim`, `hostvol`, or `emptyDir` | `persistentVolumeClaim` |
-| `storage.backups.pvc.size` | Size requested for backup volume | `10Gi` |
-| `storage.backups.pvc.storageClassName` | StorageClass name (uses default if empty) | `""` |
-| `storage.backups.pvc.existingClaim` | Name of pre-existing PVC to bind | `""` |
-| `storage.backups.hostvol.path` | Host path when `kind: hostvol` | `/data/valheim-backups` |
 
 ### Backups
 
-Managed via upstream container built-in backup engine:
+Managed via upstream container built-in backup engine. When `backups.enabled: true`, backup storage under `backups.storage` is mounted to `backups.directory` (`/config/backups`):
 
 | Parameter | Description | Default |
 |:---|:---|:---|
-| `backups.enabled` | Enable periodic automatic backups | `true` |
+| `backups.enabled` | Enable periodic automatic backups and dedicated backup storage | `true` |
 | `backups.cron` | Cron schedule expression for backups | `5 * * * *` |
 | `backups.directory` | Container directory where backups are stored | `/config/backups` |
 | `backups.maxAge` | Retention in days before pruning old backups | `3` |
@@ -118,6 +111,11 @@ Managed via upstream container built-in backup engine:
 | `backups.zip` | Compress backups as `.zip` (`false` creates directories) | `true` |
 | `backups.preBackupHook` | Shell command executed before backup runs (`@BACKUP_FILE@` placeholder) | `""` |
 | `backups.postBackupHook` | Shell command executed after backup finishes (`@BACKUP_FILE@` placeholder) | `""` |
+| `backups.storage.kind` | Storage type: `persistentVolumeClaim`, `hostvol`, or `emptyDir` | `persistentVolumeClaim` |
+| `backups.storage.pvc.size` | Size requested for backup volume | `10Gi` |
+| `backups.storage.pvc.storageClassName` | StorageClass name (uses default if empty) | `""` |
+| `backups.storage.pvc.existingClaim` | Name of pre-existing PVC to bind | `""` |
+| `backups.storage.hostvol.path` | Host path when `kind: hostvol` | `/data/valheim-backups` |
 
 #### Offsite Backup Example
 
