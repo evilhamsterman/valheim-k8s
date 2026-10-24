@@ -1,0 +1,71 @@
+version: '3'
+
+vars:
+  RELEASE_NAME: '{{.RELEASE_NAME | default "valheim-server"}}'
+  NAMESPACE: '{{.NAMESPACE | default "default"}}'
+  REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
+  OWNER: '{{.OWNER | default "evilhamsterman"}}'
+  CHART_DIR: './chart'
+  DIST_DIR: '.dist'
+  VERSION:
+    sh: tr -d '[:space:]' < version
+
+tasks:
+  default:
+    desc: Run chart linting
+    cmds:
+      - task: lint
+
+  lint:
+    desc: Lint the Helm chart
+    cmds:
+      - helm lint {{.CHART_DIR}} {{.CLI_ARGS}}
+
+  template:
+    desc: Render chart templates locally
+    cmds:
+      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} {{.CLI_ARGS}}
+
+  build:
+    desc: Package the Helm chart into an archive for OCI distribution
+    aliases:
+      - package
+    cmds:
+      - mkdir -p {{.DIST_DIR}}
+      - helm package {{.CHART_DIR}} --version {{.VERSION}} -d {{.DIST_DIR}}
+
+  publish:
+    desc: Push the packaged chart to the OCI container registry
+    aliases:
+      - push
+    deps:
+      - build
+    cmds:
+      - helm push {{.DIST_DIR}}/valheim-k8s-{{.VERSION}}.tgz oci://{{.REGISTRY}}/{{.OWNER}}
+
+  login:
+    desc: Log in to the OCI container registry
+    cmds:
+      - helm registry login {{.REGISTRY}} -u {{.OWNER}}
+
+  deploy:
+    desc: Deploy or upgrade the chart directly from the local repository
+    aliases:
+      - install
+    cmds:
+      - helm upgrade --install {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --create-namespace {{.CLI_ARGS}}
+
+  status:
+    desc: Check the status of the deployed release
+    cmds:
+      - helm status {{.RELEASE_NAME}} --namespace {{.NAMESPACE}}
+
+  uninstall:
+    desc: Uninstall the deployed chart release
+    cmds:
+      - helm uninstall {{.RELEASE_NAME}} --namespace {{.NAMESPACE}}
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf {{.DIST_DIR}}

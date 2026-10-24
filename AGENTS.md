@@ -28,19 +28,24 @@ Backups are powered by the upstream container's backup daemon:
 
 ## Local Verification & Testing
 
-Always test chart changes locally before pushing:
+A `Taskfile.yml` is provided for common development workflows (run via `task` or `go-task`):
 
 ```bash
 # Lint the chart
-helm lint ./chart
+task lint
 
-# Test template rendering with default values
-helm template valheim ./chart
+# Render templates locally
+task template
 
-# Test with specific configurations
-helm template valheim ./chart \
-  --set networking.loadBalancerClass=tailscale \
-  --set storage.backups.pvc.existingClaim=custom-backup-pvc
+# Package the chart for OCI release
+task build
+
+# Deploy or upgrade directly from local repo
+task deploy -- --values my-values.yaml
+
+# Check status or clean build artifacts
+task status
+task clean
 ```
 
 ## Git & Worktree Conventions
