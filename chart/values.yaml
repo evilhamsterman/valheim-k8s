@@ -44,8 +44,9 @@ storage:
       path: /data/valheim-server
 
   # Dedicated volume for world backups (mounted to /config/backups or backups.directory)
-  # If kind is empty (""), backups will reside on the data volume.
+  # Optional, but enabled by default. If backups are enabled, backup storage is required.
   backups:
+    enabled: true
     kind: persistentVolumeClaim
     pvc:
       size: 10Gi

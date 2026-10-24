@@ -47,7 +47,7 @@ spec:
     requests:
       storage: {{ .Values.storage.server.pvc.size }}
 {{- end }}
-{{- if and .Values.storage.backups (eq .Values.storage.backups.kind "persistentVolumeClaim") (not .Values.storage.backups.pvc.existingClaim) }}
+{{- if and .Values.storage.backups (ne .Values.storage.backups.enabled false) (eq .Values.storage.backups.kind "persistentVolumeClaim") (not .Values.storage.backups.pvc.existingClaim) }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

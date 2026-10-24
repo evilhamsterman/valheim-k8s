@@ -1,3 +1,8 @@
+{{- $backupsEnabled := and .Values.backups (ne .Values.backups.enabled false) }}
+{{- $backupStorageEnabled := and .Values.storage .Values.storage.backups (ne .Values.storage.backups.enabled false) (has (default "" .Values.storage.backups.kind) (list "persistentVolumeClaim" "hostvol" "emptyDir")) }}
+{{- if and $backupsEnabled (not $backupStorageEnabled) }}
+{{- fail "Backup storage is required when backups are enabled (.Values.backups.enabled is true). Please configure and enable .Values.storage.backups (.Values.storage.backups.enabled=true) or disable backups (.Values.backups.enabled=false)." }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -154,7 +159,7 @@ spec:
         - mountPath: /opt/valheim
           name: serverfiles
         {{- end }}
-        {{- if and .Values.storage.backups .Values.storage.backups.kind }}
+        {{- if and .Values.storage.backups (ne .Values.storage.backups.enabled false) .Values.storage.backups.kind }}
         - mountPath: {{ default "/config/backups" (and .Values.backups .Values.backups.directory) }}
           name: backupfiles
         {{- end }}
@@ -210,7 +215,7 @@ spec:
         emptyDir: {}
       {{- end }}
       {{- end }}
-      {{- if and .Values.storage.backups .Values.storage.backups.kind }}
+      {{- if and .Values.storage.backups (ne .Values.storage.backups.enabled false) .Values.storage.backups.kind }}
       {{- if eq .Values.storage.backups.kind "hostvol" }}
       - name: backupfiles
         hostPath:

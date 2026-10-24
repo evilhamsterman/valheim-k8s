@@ -95,7 +95,8 @@ Persistence is split into three separate volumes:
 | `storage.server.pvc.storageClassName` | StorageClass name (uses default if empty) | `""` |
 | `storage.server.pvc.existingClaim` | Name of pre-existing PVC to bind | `""` |
 | `storage.server.hostvol.path` | Host path when `kind: hostvol` | `/data/valheim-server` |
-| `storage.backups.kind` | Storage type: `persistentVolumeClaim`, `hostvol`, `emptyDir`, or `""` (stores inside data volume) | `persistentVolumeClaim` |
+| `storage.backups.enabled` | Enable dedicated volume for backups (required if `backups.enabled` is `true`) | `true` |
+| `storage.backups.kind` | Storage type: `persistentVolumeClaim`, `hostvol`, or `emptyDir` | `persistentVolumeClaim` |
 | `storage.backups.pvc.size` | Size requested for backup volume | `10Gi` |
 | `storage.backups.pvc.storageClassName` | StorageClass name (uses default if empty) | `""` |
 | `storage.backups.pvc.existingClaim` | Name of pre-existing PVC to bind | `""` |
