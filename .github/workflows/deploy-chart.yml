@@ -1,14 +1,8 @@
 name: Release Helm Chart (OCI)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/deploy-chart.yml'
-      - 'chart/**'
-      - 'version'
-      - 'Taskfile.yml'
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -39,4 +33,11 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | task login OWNER="${{ github.actor }}" -- --password-stdin
 
       - name: Publish OCI Chart to GHCR
-        run: task publish OWNER="${{ github.repository_owner }}"
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          if [ -n "${VERSION}" ]; then
+            task publish OWNER="${{ github.repository_owner }}" VERSION="${VERSION}"
+          else
+            task publish OWNER="${{ github.repository_owner }}"
+          fi

@@ -51,5 +51,5 @@ task clean
 ## Release & CI/CD Workflow
 
 - Version number is tracked in both `version` and `chart/Chart.yaml` (keep both in sync).
-- CI workflow (`.github/workflows/deploy-chart.yml`) triggers on pushes to `main` touching `chart/**` or `version`.
+- CI workflow (`.github/workflows/deploy-chart.yml`) triggers on published GitHub releases (and manual `workflow_dispatch`).
 - Packages the chart with Helm and pushes the OCI package to `oci://ghcr.io/${OWNER}`.
