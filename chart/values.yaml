@@ -1,65 +1,132 @@
+# World and server configuration
 worldName: example-world-name
 serverName: example-server-name
 password: password
-
-resources: {}
+# Set passwordSecret to use an existing Kubernetes secret instead of plain text password.
+# The secret must contain a key named 'password'.
+# passwordSecret: my-valheim-secret
+serverPublic: true
+# Additional command line arguments to pass to the Valheim server
+# serverArgs: ""
 
 image:
-  repository: lloesche/valheim-server
+  repository: ghcr.io/community-valheim-tools/valheim-server
   tag: latest
+  pullPolicy: IfNotPresent
 
 storage:
+  # World save files, admin/ban lists, and preferences (mounted to /config)
   data:
-    kind: hostvol
+    kind: persistentVolumeClaim
+    pvc:
+      size: 2Gi
+      # storageClassName: ""
+      # existingClaim: ""
+      accessModes:
+        - ReadWriteOnce
+      # annotations: {}
+      # labels: {}
     hostvol:
       path: /data/valheim
-    pvc:
-      size: 1Gi
+
+  # Server installation files and Steam depot cache (mounted to /opt/valheim)
   server:
-    kind: hostvol
+    kind: persistentVolumeClaim
+    pvc:
+      size: 10Gi
+      # storageClassName: ""
+      # existingClaim: ""
+      accessModes:
+        - ReadWriteOnce
+      # annotations: {}
+      # labels: {}
     hostvol:
       path: /data/valheim-server
-    pvc:
-      size: 5Gi
+
+  # Dedicated volume for world backups (mounted to /config/backups or backups.directory)
+  # If kind is empty (""), backups will reside on the data volume.
   backups:
-    kind: hostvol
+    kind: persistentVolumeClaim
+    pvc:
+      size: 10Gi
+      # storageClassName: ""
+      # existingClaim: ""
+      accessModes:
+        - ReadWriteOnce
+      # annotations: {}
+      # labels: {}
     hostvol:
       path: /data/valheim-backups
-    pvc:
-      size: 5Gi
 
-# if useHostNetworking is set to true then no service is created
-# and the gamePort
+# Built-in backup management options from upstream container
+backups:
+  # Enable periodic automatic world backups
+  enabled: true
+  # Cron expression for backup schedule (default: hourly at 5 past the hour)
+  cron: "5 * * * *"
+  # Directory where backups are written in the container
+  directory: "/config/backups"
+  # Purge backups older than this number of days (default: 3)
+  maxAge: 3
+  # Maximum number of backups to retain (0 = unlimited, still constrained by maxAge)
+  maxCount: 0
+  # Perform backups even if no players are currently connected
+  ifIdle: true
+  # Grace period (seconds) after last player disconnects to still trigger backups (when ifIdle is false)
+  idleGracePeriod: 3600
+  # Compress backups into zip archives (false stores uncompressed directory)
+  zip: true
+  # Command executed before creating backup (@BACKUP_FILE@ placeholder substituted)
+  preBackupHook: ""
+  # Command executed after creating backup (@BACKUP_FILE@ placeholder substituted)
+  # Example: "timeout 300 scp -i /extraVolumes/backup-ssh-key/ssh-key -o StrictHostKeyChecking=no @BACKUP_FILE@ user@host:/backups/$(basename @BACKUP_FILE@)"
+  postBackupHook: ""
+
+# If useHostNetworking is true, pod uses host network namespace and no Service is created
 useHostNetworking: false
+
 networking:
-  # Optional additional annotations to add to the service
-  # serviceAnnotations: {}
-  # Optional additional labels to add to the service
-  # serviceLabels: {}
   serviceType: LoadBalancer
-  # loadBalancerClass:
+  # Specify load balancer class implementation (e.g., 'tailscale', 'io.cilium/node', etc.)
+  # loadBalancerClass: ""
+  # Optional static IP for LoadBalancer service
+  # loadBalancerIP: ""
+  # Traffic policy ('Local' or 'Cluster')
+  # externalTrafficPolicy: Local
   gamePort: 2456
   publishQueryPort: true
   nodePort: 30373
+  # Optional additional service annotations and labels
+  serviceAnnotations: {}
+  serviceLabels: {}
+
+resources: {}
+  # limits:
+  #   cpu: 4000m
+  #   memory: 8Gi
+  # requests:
+  #   cpu: 2000m
+  #   memory: 4Gi
 
 nodeSelector: {}
+tolerations: []
+affinity: {}
+securityContext: {}
 
-tolerations: {}
-# If you utilize priority classes, you can define the priority class for this deployment here
-# priorityClassName: my-priority-class-name
+# Optional pod labels and annotations
+podLabels: {}
+podAnnotations: {}
 
-# resources:
-#   requests:
-#     memory: "4Gi"
-#     cpu: "2000m"
+# priorityClassName: high-priority
 
+# Additional environment variables passed to the container
 # extraEnvironmentVars:
-#   BACKUPS: true
-#   BACKUPS_CRON: "0 * * * *"
-#   BACKUPS_MAX_AGE: 3
-#   POST_BACKUP_HOOK: "timeout 300 scp -i /extraVolumes/backup-ssh-key/ssh-privatekey -o StrictHostKeyChecking=no @BACKUP_FILE@ myself@example.com:~/valheim_backups/$(basename @BACKUP_FILE@)"
+#   SUPERVISOR_HTTP: "true"
+#   SUPERVISOR_HTTP_PASS: "secret"
 
+# Extra volumes to mount (e.g., secrets for backup SSH keys, custom configs)
 # extraVolumes:
-# - type: secret
-#   name: backup-ssh-key
-#   defaultMode: 0600
+#   - name: backup-ssh-key
+#     type: secret
+#     defaultMode: 0600
+#     mountPath: /extraVolumes/backup-ssh-key

@@ -1,0 +1,227 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}
+    {{- with .Values.podLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.podAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  serviceName: {{ .Release.Name }}
+  replicas: 1
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
+      {{- if .Values.useHostNetworking }}
+      hostNetwork: true
+      {{- end }}
+      containers:
+      - name: {{ .Release.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+        env:
+        - name: SERVER_NAME
+          value: {{ .Values.serverName | quote }}
+        - name: WORLD_NAME
+          value: {{ .Values.worldName | quote }}
+        - name: SERVER_PORT
+          value: {{ .Values.networking.gamePort | quote }}
+        {{- if ne .Values.serverPublic nil }}
+        - name: SERVER_PUBLIC
+          value: {{ ternary "true" "false" .Values.serverPublic | quote }}
+        {{- end }}
+        {{- if .Values.serverArgs }}
+        - name: SERVER_ARGS
+          value: {{ .Values.serverArgs | quote }}
+        {{- end }}
+        {{- if .Values.passwordSecret }}
+        - name: SERVER_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.passwordSecret }}
+              key: password
+              optional: false
+        {{- else if .Values.password }}
+        - name: SERVER_PASS
+          value: {{ .Values.password | quote }}
+        {{- else }}
+        - name: SERVER_PASS
+          value: "password"
+        {{- end }}
+        {{- if .Values.backups }}
+        {{- if ne .Values.backups.enabled nil }}
+        - name: BACKUPS
+          value: {{ ternary "true" "false" .Values.backups.enabled | quote }}
+        {{- end }}
+        {{- if .Values.backups.cron }}
+        - name: BACKUPS_CRON
+          value: {{ .Values.backups.cron | quote }}
+        {{- end }}
+        {{- if .Values.backups.directory }}
+        - name: BACKUPS_DIRECTORY
+          value: {{ .Values.backups.directory | quote }}
+        {{- end }}
+        {{- if ne .Values.backups.maxAge nil }}
+        - name: BACKUPS_MAX_AGE
+          value: {{ .Values.backups.maxAge | quote }}
+        {{- end }}
+        {{- if ne .Values.backups.maxCount nil }}
+        - name: BACKUPS_MAX_COUNT
+          value: {{ .Values.backups.maxCount | quote }}
+        {{- end }}
+        {{- if ne .Values.backups.ifIdle nil }}
+        - name: BACKUPS_IF_IDLE
+          value: {{ ternary "true" "false" .Values.backups.ifIdle | quote }}
+        {{- end }}
+        {{- if .Values.backups.idleGracePeriod }}
+        - name: BACKUPS_IDLE_GRACE_PERIOD
+          value: {{ .Values.backups.idleGracePeriod | quote }}
+        {{- end }}
+        {{- if ne .Values.backups.zip nil }}
+        - name: BACKUPS_ZIP
+          value: {{ ternary "true" "false" .Values.backups.zip | quote }}
+        {{- end }}
+        {{- if .Values.backups.preBackupHook }}
+        - name: PRE_BACKUP_HOOK
+          value: {{ .Values.backups.preBackupHook | quote }}
+        {{- end }}
+        {{- if .Values.backups.postBackupHook }}
+        - name: POST_BACKUP_HOOK
+          value: {{ .Values.backups.postBackupHook | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.extraEnvironmentVars }}
+        {{- range $key, $value := . }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        ports:
+        - containerPort: {{ .Values.networking.gamePort | int }}
+          name: gameport
+          protocol: UDP
+        {{- if .Values.networking.publishQueryPort }}
+        - containerPort: {{ .Values.networking.gamePort | int | add 1 }}
+          name: queryport
+          protocol: UDP
+        {{- end }}
+        volumeMounts:
+        {{- if and .Values.storage.data .Values.storage.data.kind }}
+        - mountPath: /config
+          name: gamefiles
+        {{- end }}
+        {{- if and .Values.storage.server .Values.storage.server.kind }}
+        - mountPath: /opt/valheim
+          name: serverfiles
+        {{- end }}
+        {{- if and .Values.storage.backups .Values.storage.backups.kind }}
+        - mountPath: {{ default "/config/backups" (and .Values.backups .Values.backups.directory) }}
+          name: backupfiles
+        {{- end }}
+        {{- range .Values.extraVolumes }}
+        - name: {{ .name }}
+          readOnly: {{ default true .readOnly }}
+          mountPath: {{ default (printf "/extraVolumes/%s" .name) .mountPath }}
+        {{- end }}
+        {{- with .Values.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      volumes:
+      {{- if and .Values.storage.data .Values.storage.data.kind }}
+      {{- if eq .Values.storage.data.kind "hostvol" }}
+      - name: gamefiles
+        hostPath:
+          path: {{ .Values.storage.data.hostvol.path }}
+          type: DirectoryOrCreate
+      {{- else if eq .Values.storage.data.kind "persistentVolumeClaim" }}
+      - name: gamefiles
+        persistentVolumeClaim:
+          claimName: {{ default (printf "%s-world-data" .Release.Name) .Values.storage.data.pvc.existingClaim }}
+      {{- else if eq .Values.storage.data.kind "emptyDir" }}
+      - name: gamefiles
+        emptyDir: {}
+      {{- end }}
+      {{- end }}
+      {{- if and .Values.storage.server .Values.storage.server.kind }}
+      {{- if eq .Values.storage.server.kind "hostvol" }}
+      - name: serverfiles
+        hostPath:
+          path: {{ .Values.storage.server.hostvol.path }}
+          type: DirectoryOrCreate
+      {{- else if eq .Values.storage.server.kind "persistentVolumeClaim" }}
+      - name: serverfiles
+        persistentVolumeClaim:
+          claimName: {{ default (printf "%s-server-base-data" .Release.Name) .Values.storage.server.pvc.existingClaim }}
+      {{- else if eq .Values.storage.server.kind "emptyDir" }}
+      - name: serverfiles
+        emptyDir: {}
+      {{- end }}
+      {{- end }}
+      {{- if and .Values.storage.backups .Values.storage.backups.kind }}
+      {{- if eq .Values.storage.backups.kind "hostvol" }}
+      - name: backupfiles
+        hostPath:
+          path: {{ .Values.storage.backups.hostvol.path }}
+          type: DirectoryOrCreate
+      {{- else if eq .Values.storage.backups.kind "persistentVolumeClaim" }}
+      - name: backupfiles
+        persistentVolumeClaim:
+          claimName: {{ default (printf "%s-backup-data" .Release.Name) .Values.storage.backups.pvc.existingClaim }}
+      {{- else if eq .Values.storage.backups.kind "emptyDir" }}
+      - name: backupfiles
+        emptyDir: {}
+      {{- end }}
+      {{- end }}
+      {{- range .Values.extraVolumes }}
+      - name: {{ .name }}
+        {{ .type }}:
+          {{- if (eq .type "configMap") }}
+          name: {{ .name }}
+          {{- else if (eq .type "secret") }}
+          secretName: {{ .name }}
+          {{- if .defaultMode }}
+          defaultMode: {{ .defaultMode }}
+          {{- end }}
+          {{- end }}
+      {{- end }}

@@ -1,100 +1,172 @@
 # valheim-k8s
 
-Kubernetes deployment for a valheim game-server. Based off the dockerization work by lloesche [here](https://github.com/lloesche/valheim-server-docker).
+Kubernetes Helm chart for deploying a dedicated [Valheim](https://store.steampowered.com/app/892970/Valheim/) game server. Based on the community container image [`ghcr.io/community-valheim-tools/valheim-server`](https://github.com/community-valheim-tools/valheim-server-docker).
 
-For advanced configuration options see [valheim-server-docker repo's README](https://github.com/lloesche/valheim-server-docker)
+## Features
 
-## Usage
+- **StatefulSet Architecture**: Deploys as a single-replica `StatefulSet` with rolling updates to avoid volume multi-attach contention on node failovers.
+- **K8s-Native Persistence**: Defaults to `PersistentVolumeClaim` (PVC) for world data, server files, and dedicated backup storage, with support for pre-existing claims (`existingClaim`) and `hostvol` paths.
+- **Dedicated Backup Storage & Management**: First-class support for a separate backup PVC, cron-based scheduling, idle detection, retention policies, and pre/post backup hooks for offsite sync.
+- **Flexible Networking**: Supports `LoadBalancer` (with `loadBalancerClass`, static IP, and `externalTrafficPolicy: Local`), `NodePort`, and `hostNetwork`.
+- **OCI Distribution**: Packaged and published directly to GitHub Container Registry (GHCR) as an OCI artifact.
 
-Note: This assumes the node you are running on can use `/data/valheim` mounted as a host volume for persistence.
+## Installation
+
+### Helm CLI (OCI)
 
 ```bash
-helm repo add valheim-k8s https://addyvan.github.io/valheim-k8s/
-helm repo update
-helm install valheim-server valheim-k8s/valheim-k8s  \
-  --set worldName=example-world-name \
-  --set serverName=example-server-name \
-  --set password=password \
-  --set storage.kind=hostvol \
-  --set storage.hostvol.path=/data/valheim
+helm install valheim-server oci://ghcr.io/evilhamsterman/valheim-k8s \
+  --version 3.0.0 \
+  --set worldName="my-world" \
+  --set serverName="My Valheim Server" \
+  --set password="supersecretpass"
+```
+
+### GitOps with Flux
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: evilhamsterman-charts
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 1h
+  url: oci://ghcr.io/evilhamsterman
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: valheim-server
+  namespace: games
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: valheim-k8s
+      version: "3.0.0"
+      sourceRef:
+        kind: HelmRepository
+        name: evilhamsterman-charts
+        namespace: flux-system
+  values:
+    worldName: "my-world"
+    serverName: "My Valheim Server"
+    passwordSecret: "valheim-credentials"
+    networking:
+      serviceType: LoadBalancer
+      loadBalancerClass: "tailscale"
 ```
 
 ## Configuration
 
-| Parameter                            | Description                                                            | Default                   |
-|:-------------------------------------|:-----------------------------------------------------------------------|:--------------------------|
-| `worldName`                          | Prefix of the world files to use (will make new if missing)            | `example-world-name`      |
-| `serverName`                         | Server name displayed in the server browser(s)                         | `example-server-name`     |
-| `password`                           | Server password                                                        | `password`                |
-| `passwordSecret`                     | Name of Kubernetes secret to pull secret from. Secret should contain a single field labeled `password`                                                        | None                |
-| `storage.kind`                       | Storage strategy/soln used to provide the game-server with persistence | `hostvol`                 |
-| `storage.hostvol.path`               | The folder to be mounted into /config in the game-server pod           | `/data/valheim`           |
-| `storage.pvc.storageClassName`       | The storageClass used to create the persistentVolumeClaim              | `default`                 |
-| `storage.pvc.size`                   | The size of the persistent volume to be created                        | `1Gi`                     |
-| `serverStorage.kind`                 | Storage strategy/soln used to save the server installation files       | `hostvol`                 |
-| `serverStorage.hostvol.path`         | The folder to be mounted into /opt/valheim in the game-server pod      | `/data/valheim-server`    |
-| `serverStorage.pvc.storageClassName` | The storageClass used to create the persistentVolumeClaim              | `default`                 |
-| `serverStorage.pvc.size`             | The size of the persistent volume to be created                        | `5Gi`                     |
-| `useHostNetworking`                  | If true, set pod.spec.hostNetwork = true and don't create a service    | `false`                   |
-| `networking.serviceType`             | The type of service e.g `NodePort`, `LoadBalancer` or `ClusterIP`      | `LoadBalancer`            |
-| `networking.loadBalancerIP`          | A user supplied IP for service type LoadBalancer                       | None                      |
-| `networking.gamePort`                | The UDP start port the server will listen on                           | `2456`                    |
-| `networking.nodePort`                | When service type is `NodePort`, assign a fixed UDP port to the server | `""`                      |
-| `networking.publishQueryPort`        | Expose the Steam query port (gamePort + 1)                             | `true`                    |
-| `nodeSelector`                       |                                                                        | `{}`                      |
-| `tolerations`                        |                                                                        | `[]`                      |
-| `image.repository`                   | Specifies container image repository                                   | `lloesche/valheim-server` |
-| `image.tag`                          | Specifies container image tag                                          | `latest`                  |
-| `priorityClassName`                  | Specifies the priority class name for the deployment                   | None                      |
+### World and Server Settings
 
-## Persistence
+| Parameter | Description | Default |
+|:---|:---|:---|
+| `worldName` | World name / save prefix | `example-world-name` |
+| `serverName` | Name displayed in server browser | `example-server-name` |
+| `password` | Server password (min. 5 characters) | `password` |
+| `passwordSecret` | Name of existing Secret containing `password` key | `""` |
+| `serverPublic` | List server in public browser | `true` |
+| `serverArgs` | Additional command-line arguments to server | `""` |
+| `image.repository` | Container image repository | `ghcr.io/community-valheim-tools/valheim-server` |
+| `image.tag` | Container image tag | `latest` |
+| `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 
-Currently persistence is supported through mounting a `hostvol` or via a `persistentVolumeClaim`. Please create an issue if you would like support for specific cloud storage solutions via PVCs / storageclasses. They vary by provider so PRs / testers welcome for this.
+### Storage
 
-You can enable persistence for both the server data (your worlds, mounted at `/config` and configured with the `storage` parameter) and the server installation (to skip downloading it every time a pod is created, mounted at `/opt/valheim`, configured with the `serverStorage` parameter).
+Persistence is split into three separate volumes:
 
-### Using a Host Volume
+1. **`storage.data`**: World saves, admin/ban lists, and preferences (mounted to `/config`).
+2. **`storage.server`**: Server binaries and Steam depot cache (mounted to `/opt/valheim`). Skipping re-downloads on restart.
+3. **`storage.backups`**: Dedicated world backup archives (mounted to `/config/backups` or `backups.directory`).
 
-Note: If you are deploying to a cloud provider it is highly recommended that you use a PVC powered by a cloud-specific storageClass. Otherwise you risk losing your world.
+| Parameter | Description | Default |
+|:---|:---|:---|
+| `storage.data.kind` | Storage type: `persistentVolumeClaim`, `hostvol`, or `emptyDir` | `persistentVolumeClaim` |
+| `storage.data.pvc.size` | Size requested for world data PVC | `2Gi` |
+| `storage.data.pvc.storageClassName` | StorageClass name (uses default if empty) | `""` |
+| `storage.data.pvc.existingClaim` | Name of pre-existing PVC to bind | `""` |
+| `storage.data.hostvol.path` | Host path when `kind: hostvol` | `/data/valheim` |
+| `storage.server.kind` | Storage type: `persistentVolumeClaim`, `hostvol`, or `emptyDir` | `persistentVolumeClaim` |
+| `storage.server.pvc.size` | Size requested for server binary PVC | `10Gi` |
+| `storage.server.pvc.storageClassName` | StorageClass name (uses default if empty) | `""` |
+| `storage.server.pvc.existingClaim` | Name of pre-existing PVC to bind | `""` |
+| `storage.server.hostvol.path` | Host path when `kind: hostvol` | `/data/valheim-server` |
+| `storage.backups.kind` | Storage type: `persistentVolumeClaim`, `hostvol`, `emptyDir`, or `""` (stores inside data volume) | `persistentVolumeClaim` |
+| `storage.backups.pvc.size` | Size requested for backup volume | `10Gi` |
+| `storage.backups.pvc.storageClassName` | StorageClass name (uses default if empty) | `""` |
+| `storage.backups.pvc.existingClaim` | Name of pre-existing PVC to bind | `""` |
+| `storage.backups.hostvol.path` | Host path when `kind: hostvol` | `/data/valheim-backups` |
 
-On the node you wish to use make sure the folder you are mounting exists (ideally empty if you are starting a new world). Once you spin up the game pod you should see the following files created:
+### Backups
 
-```bash
-$ ls /data/valheim
-adminlist.txt  backups  bannedlist.txt  permittedlist.txt  prefs  worlds
+Managed via upstream container built-in backup engine:
+
+| Parameter | Description | Default |
+|:---|:---|:---|
+| `backups.enabled` | Enable periodic automatic backups | `true` |
+| `backups.cron` | Cron schedule expression for backups | `5 * * * *` |
+| `backups.directory` | Container directory where backups are stored | `/config/backups` |
+| `backups.maxAge` | Retention in days before pruning old backups | `3` |
+| `backups.maxCount` | Maximum backup files kept (`0` for unlimited) | `0` |
+| `backups.ifIdle` | Continue backups when no players are connected | `true` |
+| `backups.idleGracePeriod` | Grace period in seconds to wait for final world save after last player disconnects | `3600` |
+| `backups.zip` | Compress backups as `.zip` (`false` creates directories) | `true` |
+| `backups.preBackupHook` | Shell command executed before backup runs (`@BACKUP_FILE@` placeholder) | `""` |
+| `backups.postBackupHook` | Shell command executed after backup finishes (`@BACKUP_FILE@` placeholder) | `""` |
+
+#### Offsite Backup Example
+
+Use `extraVolumes` and `postBackupHook` to sync backups offsite via SCP/rsync/S3:
+
+```yaml
+extraVolumes:
+  - name: backup-ssh-key
+    type: secret
+    defaultMode: 0600
+    mountPath: /extraVolumes/backup-ssh-key
+
+backups:
+  postBackupHook: "timeout 300 scp -i /extraVolumes/backup-ssh-key/id_rsa -o StrictHostKeyChecking=no @BACKUP_FILE@ user@remote:~/backups/$(basename @BACKUP_FILE@)"
 ```
 
-### Using a persistentVolumeClaim
+### Networking
 
-To use a `persistentVolumeClaim` for storage, you will need to first set up your CSI and StorageClass for your K8s cluster. Information regarding that differs by cloud provider and there are several guides available for configuring each of them.
+| Parameter | Description | Default |
+|:---|:---|:---|
+| `useHostNetworking` | Run pod on host network namespace (bypasses Service) | `false` |
+| `networking.serviceType` | Service type (`LoadBalancer`, `NodePort`, `ClusterIP`) | `LoadBalancer` |
+| `networking.loadBalancerClass` | Optional LoadBalancer class implementation | `""` |
+| `networking.loadBalancerIP` | Static IP for LoadBalancer | `""` |
+| `networking.externalTrafficPolicy` | External traffic policy (`Local` preserves source IP, `Cluster`) | `""` |
+| `networking.gamePort` | UDP port server listens on | `2456` |
+| `networking.publishQueryPort` | Expose Steam query port (`gamePort + 1`) | `true` |
+| `networking.nodePort` | Fixed port when using `serviceType: NodePort` | `30373` |
+| `networking.serviceAnnotations` | Annotations for the Service | `{}` |
+| `networking.serviceLabels` | Labels for the Service | `{}` |
 
-Once you have your StorageClass set up, set `storage.kind` to `persistentVolumeClaim`, optionally set `storage.pvc.storageClassName` to the name of your previously configured StorageClass (or it will use the default StorageClass), and set `storage.pvc.size` to the size of the volume to create (default 1Gi).
+### Pod Scheduling & Resources
 
-### Using an existing world
+| Parameter | Description | Default |
+|:---|:---|:---|
+| `resources` | Pod resource requests and limits | `{}` |
+| `nodeSelector` | Node selector labels | `{}` |
+| `tolerations` | Pod toleration rules | `[]` |
+| `affinity` | Pod affinity rules | `{}` |
+| `securityContext` | Pod security context | `{}` |
+| `priorityClassName` | Priority class name | `""` |
+| `podLabels` | Additional labels for pod | `{}` |
+| `podAnnotations` | Additional annotations for pod | `{}` |
+| `extraEnvironmentVars` | Additional environment variables for container | `{}` |
+| `extraVolumes` | Additional volumes to mount into the pod | `[]` |
 
-To use an existing world simply set the `worldName` parameter to the name of your world then save the `.db` and `.fwl` files to the directory mounted into the pod. For example, if your world is named `myworld` then set `worldName: myworld` in your values file (or `--set worldName=myworld`) and assuming you are mounting at `/data/valheim` then your directory should look like:
+## Connecting to the Server
 
-```bash
-$ ls /data/valheim/worlds/
-myworld.db  myworld.fwl
-```
-
-## Connecting to your world
-
-Assuming you have taken care of the networking (port-forwarding if needed, LoadBalancer IP is created, ...):
-
-- In the steam UI (NOT IN GAME) go to view->servers->add favorite
-  - set the port to 2457 ([reason for that here](https://github.com/lloesche/valheim-server-docker/discussions/32#discussioncomment-371306))
-- To connect double click the server in the steam servers explorer
-  - You will be asked for the password in the steam ui and in game
-
-More visual set of instructions [here](https://github.com/mbround18/valheim-docker/discussions/51)
-
-## Potential future updates
-
-If there is interest I can hash out the following:
-
-- Cronjob to save backups to s3, blob storage, or minio
-  - Then clear up the space in the hostvol/pvc
-- More persistence options, namely for those looking to run this on the cloud
-  - I'm familiar with Azure and AWS but I'm sure GCP and others will be fairly simple to figure out if we have testers
+1. **Steam Favorites Browser** (Recommended):
+   - In Steam, navigate to **View** -> **Game Servers** -> **Favorites**.
+   - Click **+** and enter `<IP_OR_HOSTNAME>:<QUERY_PORT>` (default query port is `2457`, which is `gamePort + 1`).
+2. **In-Game Browser**:
+   - Search for `serverName` in the community/favorites list.

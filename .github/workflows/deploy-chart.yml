@@ -1,58 +1,49 @@
-name: Deploy helm chart
-on: 
+name: Release Helm Chart (OCI)
+
+on:
   push:
     branches:
       - main
     paths:
-    - '.github/workflows/deploy-chart.yml'
-    - 'chart/**'
-    - 'version'
+      - '.github/workflows/deploy-chart.yml'
+      - 'chart/**'
+      - 'version'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  deploy-valheim-helm-chart:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v1
-        with:
-          ref: 'main'
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install tools
-        run: |
-          helm version
-          echo "Installing chart-releaser..."
-          curl -sSL https://github.com/helm/chart-releaser/releases/download/v0.2.1/chart-releaser_0.2.1_linux_amd64.tar.gz | tar xzf -
-          sudo mv cr /bin/cr
-      
-      - name: Release
-        run: |
-          export GIT_EMAIL=${{ secrets.GIT_EMAIL }}
-          export CH_TOKEN=${{ secrets.GIT_TOKEN }}
-          export GIT_REPOSITORY_URL=https://github.com/addyvan/valheim-k8s
-          
-          version=$(cat version)
-          
-          helm package --version=$version ./chart --destination .deploy
-          cr upload ./chart --owner addyvan -r valheim-k8s --token $CH_TOKEN -p .deploy || echo "$version already exists"
-      
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v1
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
         with:
-          ref: 'gh-pages'
-          clean: false
-          
-      - name: Update chart index
+          version: latest
+
+      - name: Lint Chart
         run: |
-          cr index -i ./index.yaml -p .deploy --owner addyvan --repo valheim-k8s || echo "index.yaml did not change"
-      
-      - name: commit index changes
+          helm lint ./chart
+
+      - name: Package Chart
+        id: package
         run: |
-          git add index.yaml
-          git config --local user.email ${{ secrets.GIT_EMAIL }}
-          git config --local user.name addyvan
-          git commit -m "release $version" || echo "No changes to commit"
-      
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GIT_TOKEN }}
-          branch: gh-pages
+          VERSION=$(cat version | tr -d '[:space:]')
+          mkdir -p .dist
+          helm package ./chart --version "${VERSION}" -d .dist
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Publish OCI Chart to GHCR
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          VERSION="${{ steps.package.outputs.version }}"
+          helm push ".dist/valheim-k8s-${VERSION}.tgz" "oci://ghcr.io/${OWNER}"

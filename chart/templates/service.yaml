@@ -1,4 +1,4 @@
-{{ if eq .Values.useHostNetworking false }}
+{{- if not .Values.useHostNetworking }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -13,30 +13,33 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  type: {{ .Values.networking.serviceType }}
+  {{- if .Values.networking.loadBalancerClass }}
+  loadBalancerClass: {{ .Values.networking.loadBalancerClass | quote }}
+  {{- end }}
+  {{- if .Values.networking.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.networking.loadBalancerIP | quote }}
+  {{- end }}
+  {{- if .Values.networking.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ .Values.networking.externalTrafficPolicy | quote }}
+  {{- end }}
+  selector:
+    app: {{ .Release.Name }}
   ports:
   - name: gameport
     port: {{ .Values.networking.gamePort | int }}
     targetPort: {{ .Values.networking.gamePort | int }}
     protocol: UDP
     {{- if eq .Values.networking.serviceType "NodePort" }}
-    nodePort: {{ default "" .Values.networking.nodePort }}
+    nodePort: {{ .Values.networking.nodePort | default nil }}
     {{- end }}
-  {{ if .Values.networking.publishQueryPort }}
+  {{- if .Values.networking.publishQueryPort }}
   - name: queryport
     port: {{ .Values.networking.gamePort | int | add 1 }}
     targetPort: {{ .Values.networking.gamePort | int | add 1 }}
     protocol: UDP
     {{- if eq .Values.networking.serviceType "NodePort" }}
-    nodePort: {{ default "" (.Values.networking.nodePort | int | add 1) }}
+    nodePort: {{ if .Values.networking.nodePort }}{{ .Values.networking.nodePort | int | add 1 }}{{ else }}nil{{ end }}
     {{- end }}
-  {{ end }}
-  type: {{ .Values.networking.serviceType }}
-  {{ if .Values.networking.loadBalancerClass }}
-  loadBalancerClass: {{ .Values.networking.loadBalancerClass | quote }}
-  {{ end }}
-  {{ if .Values.networking.loadBalancerIP }}
-  loadBalancerIP: {{ .Values.networking.loadBalancerIP | quote }}
-  {{ end }}
-  selector:
-    app: {{ .Release.Name }}
-{{ end }}
+  {{- end }}
+{{- end }}
