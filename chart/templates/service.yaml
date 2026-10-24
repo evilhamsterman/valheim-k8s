@@ -24,7 +24,7 @@ spec:
   externalTrafficPolicy: {{ .Values.networking.externalTrafficPolicy | quote }}
   {{- end }}
   selector:
-    app: {{ .Release.Name }}
+    valheim/server: {{ .Release.Name }}
   ports:
   - name: gameport
     port: {{ .Values.networking.gamePort | int }}

@@ -4,6 +4,7 @@ metadata:
   name: {{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
   labels:
+    valheim/server: {{ .Release.Name }}
     app: {{ .Release.Name }}
     {{- with .Values.podLabels }}
     {{- toYaml . | nindent 4 }}
@@ -20,10 +21,11 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: {{ .Release.Name }}
+      valheim/server: {{ .Release.Name }}
   template:
     metadata:
       labels:
+        valheim/server: {{ .Release.Name }}
         app: {{ .Release.Name }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
