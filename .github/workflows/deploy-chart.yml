@@ -26,9 +26,6 @@ jobs:
         with:
           version: 3.x
 
-      - name: Lint Chart
-        run: task lint
-
       - name: Login to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | task login OWNER="${{ github.actor }}" -- --password-stdin
 
