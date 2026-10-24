@@ -168,5 +168,8 @@ backups:
 1. **Steam Favorites Browser** (Recommended):
    - In Steam, navigate to **View** -> **Game Servers** -> **Favorites**.
    - Click **+** and enter `<IP_OR_HOSTNAME>:<QUERY_PORT>` (default query port is `2457`, which is `gamePort + 1`).
-2. **In-Game Browser**:
-   - Search for `serverName` in the community/favorites list.
+2. **In-Game Direct Connect**:
+   - In Valheim, select **Start Game** -> **Join Game** -> **Join IP**.
+   - Enter `<IP_OR_HOSTNAME>:<GAME_PORT>` (default game port is `2456`).
+3. **In-Game Community Browser**:
+   - Searching for `serverName` in the community browser only works if `serverPublic: true` (default). Otherwise, use direct connect via `<IP_OR_HOSTNAME>:<GAME_PORT>`.
