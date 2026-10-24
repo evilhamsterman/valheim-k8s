@@ -4,7 +4,7 @@ vars:
   RELEASE_NAME: '{{.RELEASE_NAME | default "valheim-server"}}'
   NAMESPACE: '{{.NAMESPACE | default "default"}}'
   REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
-  OWNER: '{{.OWNER | default "evilhamsterman"}}'
+  OWNER: '{{.OWNER | default "evilhamsterman" | lower}}'
   CHART_DIR: './chart'
   DIST_DIR: '.dist'
   VERSION:
@@ -46,7 +46,7 @@ tasks:
   login:
     desc: Log in to the OCI container registry
     cmds:
-      - helm registry login {{.REGISTRY}} -u {{.OWNER}}
+      - helm registry login {{.REGISTRY}} -u {{.OWNER}} {{.CLI_ARGS}}
 
   deploy:
     desc: Deploy or upgrade the chart directly from the local repository

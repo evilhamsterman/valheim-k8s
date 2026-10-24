@@ -8,6 +8,7 @@ on:
       - '.github/workflows/deploy-chart.yml'
       - 'chart/**'
       - 'version'
+      - 'Taskfile.yml'
   workflow_dispatch:
 
 permissions:
@@ -26,24 +27,16 @@ jobs:
         with:
           version: latest
 
-      - name: Lint Chart
-        run: |
-          helm lint ./chart
+      - name: Set up Task
+        uses: go-task/setup-task@v2
+        with:
+          version: 3.x
 
-      - name: Package Chart
-        id: package
-        run: |
-          VERSION=$(cat version | tr -d '[:space:]')
-          mkdir -p .dist
-          helm package ./chart --version "${VERSION}" -d .dist
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Lint Chart
+        run: task lint
 
       - name: Login to GitHub Container Registry
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | task login OWNER="${{ github.actor }}" -- --password-stdin
 
       - name: Publish OCI Chart to GHCR
-        run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          VERSION="${{ steps.package.outputs.version }}"
-          helm push ".dist/valheim-k8s-${VERSION}.tgz" "oci://ghcr.io/${OWNER}"
+        run: task publish OWNER="${{ github.repository_owner }}"
