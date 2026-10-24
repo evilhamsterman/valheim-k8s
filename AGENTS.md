@@ -40,6 +40,10 @@ task template
 # Package the chart for OCI release
 task build
 
+# Publish and tag OCI release
+task publish
+task tag TAG=latest
+
 # Deploy or upgrade directly from local repo
 task deploy -- --values my-values.yaml
 
@@ -51,5 +55,5 @@ task clean
 ## CI/CD Workflows
 
 - **CI Test (`.github/workflows/ci.yml`)**: Runs on `push` and `pull_request` to `main` touching chart files, Taskfile, or version. Executes `task lint`, `task build` (test packaging), and `task template`.
-- **Release (`.github/workflows/deploy-chart.yml`)**: Runs on published GitHub releases (and manual `workflow_dispatch`). Packages the chart and pushes the OCI artifact to `oci://ghcr.io/${OWNER}`.
+- **Release (`.github/workflows/deploy-chart.yml`)**: Runs on published GitHub releases (and manual `workflow_dispatch`). Packages the chart, pushes the OCI artifact to `oci://ghcr.io/${OWNER}`, tags `:latest` in GHCR via `crane`, and updates the floating git tag `latest`.
 - Version number is tracked in both `version` and `chart/Chart.yaml` (keep both in sync).

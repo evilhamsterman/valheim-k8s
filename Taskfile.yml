@@ -43,6 +43,11 @@ tasks:
     cmds:
       - helm push {{.DIST_DIR}}/valheim-k8s-{{.VERSION}}.tgz oci://{{.REGISTRY}}/{{.OWNER}}
 
+  tag:
+    desc: Tag an existing OCI chart in the container registry (e.g. task tag TAG=latest)
+    cmds:
+      - crane tag {{.REGISTRY}}/{{.OWNER}}/valheim-k8s:{{.VERSION}} {{.TAG | default "latest"}}
+
   login:
     desc: Log in to the OCI container registry
     cmds:
