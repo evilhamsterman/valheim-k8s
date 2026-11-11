@@ -3,7 +3,7 @@ name: valheim-k8s
 description: Kubernetes Helm chart for deploying a dedicated Valheim game server with PVC persistence and automated backups
 icon: https://cdn.cloudflare.steamstatic.com/steam/apps/892970/header.jpg
 type: application
-version: 3.0.0
+version: 3.0.1
 appVersion: "latest"
 home: https://github.com/evilhamsterman/valheim-k8s
 sources:

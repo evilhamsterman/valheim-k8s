@@ -16,7 +16,7 @@ Kubernetes Helm chart for deploying a dedicated [Valheim](https://store.steampow
 
 ```bash
 helm install valheim-server oci://ghcr.io/evilhamsterman/valheim-k8s \
-  --version 3.0.0 \
+  --version 3.0.1 \
   --set worldName="my-world" \
   --set serverName="My Valheim Server" \
   --set password="supersecretpass"
@@ -45,7 +45,7 @@ spec:
   chart:
     spec:
       chart: valheim-k8s
-      version: "3.0.0"
+      version: "3.0.1"
       sourceRef:
         kind: HelmRepository
         name: evilhamsterman-charts
